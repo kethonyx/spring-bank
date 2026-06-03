@@ -5,6 +5,7 @@ import com.dimash.springbank.dto.UserResponse;
 import com.dimash.springbank.entity.User;
 import com.dimash.springbank.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.List;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserResponse register(RegisterUserRequest request){
 
@@ -21,7 +23,7 @@ public class UserService {
 
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername());
-        user.setPassword(request.getPassword());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         User savedUser = userRepository.save(user);
 
