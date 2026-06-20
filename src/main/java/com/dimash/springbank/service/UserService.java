@@ -17,23 +17,10 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserResponse register(RegisterUserRequest request){
-
-        User user = new User();
-
-        user.setEmail(request.getEmail());
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-
-        User savedUser = userRepository.save(user);
-
-        return new UserResponse(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail());
-
-
-    }
-
-    public List<User> getAllUsers(){
-        return userRepository.findAll();
+    public List<UserResponse> getAllUsers(){
+        return userRepository.findAll().stream()
+                .map(user -> new UserResponse(user.getId(), user.getUsername(), user.getEmail()))
+                .toList();
     }
 
 

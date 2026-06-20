@@ -2,6 +2,8 @@ package com.dimash.springbank.controller;
 
 import com.dimash.springbank.dto.LoginRequest;
 import com.dimash.springbank.dto.LoginResponse;
+import com.dimash.springbank.dto.RegisterUserRequest;
+import com.dimash.springbank.dto.UserResponse;
 import com.dimash.springbank.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,5 +22,10 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request){
         return authService.login(request);
+    }
+
+    @PostMapping("/register")
+    public UserResponse register(@Valid @RequestBody RegisterUserRequest request){
+        return authService.register(request);
     }
 }

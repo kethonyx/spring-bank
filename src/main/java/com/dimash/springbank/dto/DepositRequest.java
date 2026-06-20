@@ -9,13 +9,10 @@ import java.math.BigDecimal;
 
 @Getter
 @Setter
-public class TransferRequest {
+public class DepositRequest {
 
     @NotNull
-    private Long senderAccountId;
-
-    @NotNull
-    private Long receiverAccountId;
+    private Long accountId;
 
     @DecimalMin("0.01")
     private BigDecimal amount;

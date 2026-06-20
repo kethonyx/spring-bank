@@ -1,13 +1,14 @@
 package com.dimash.springbank.controller;
 
+import com.dimash.springbank.dto.TransactionResponse;
 import com.dimash.springbank.dto.TransferRequest;
 import com.dimash.springbank.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/transactions")
@@ -21,5 +22,11 @@ public class TransactionController {
 
         return "Transfer Successful!";
     }
+
+    @GetMapping
+    public List<TransactionResponse> getMyTransactions(Principal principal){
+        return transactionService.getMyTransactions(principal.getName());
+    }
+
 
 }

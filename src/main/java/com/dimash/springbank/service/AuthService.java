@@ -2,7 +2,11 @@ package com.dimash.springbank.service;
 
 import com.dimash.springbank.dto.LoginRequest;
 import com.dimash.springbank.dto.LoginResponse;
+import com.dimash.springbank.dto.RegisterUserRequest;
+import com.dimash.springbank.dto.UserResponse;
 import com.dimash.springbank.entity.User;
+import com.dimash.springbank.exception.ResourceNotFoundException;
+import com.dimash.springbank.exception.UnauthorizedException;
 import com.dimash.springbank.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,7 +23,7 @@ public class AuthService {
     public LoginResponse login(LoginRequest request){
 
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow(
-                () ->  new RuntimeException("Invalid email or password")
+                () ->  new ResourceNotFoundException("User not found")
         );
 
         boolean matches =
@@ -29,15 +33,30 @@ public class AuthService {
                 );
 
         if(!matches){
-            throw new RuntimeException(
+            throw new UnauthorizedException(
                     "Invalid email or password"
             );
         }
 
         String token =
-                jwtService.GenerateToken(user.getEmail());
+                jwtService.generateToken(user.getEmail());
 
 
         return new LoginResponse(token);
     }
+    public UserResponse register(RegisterUserRequest request){
+
+        User user = new User();
+
+        user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        User savedUser = userRepository.save(user);
+
+        return new UserResponse(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail());
+
+
+    }
+
 }

@@ -17,8 +17,4 @@ public class RegisterUserRequest {
     private String email;
     @Size(min = 8)
     private String password;
-
-    public String getUsername(){
-        return username;
-    }
 }
