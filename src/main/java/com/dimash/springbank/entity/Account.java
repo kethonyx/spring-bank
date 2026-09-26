@@ -7,7 +7,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name= "accounts")
+@Table(name = "accounts")
 @Getter
 @Setter
 public class Account {
@@ -16,14 +16,21 @@ public class Account {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true, updatable = false)
     private String accountNumber;
 
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal balance;
 
+    @Column(nullable = false, length = 3)
     private String currency;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    public boolean isOwnedBy(String email) {
+        return user.getEmail().equals(email);
+    }
 
 }

@@ -5,15 +5,17 @@ import com.dimash.springbank.dto.TransferRequest;
 import com.dimash.springbank.entity.Account;
 import com.dimash.springbank.entity.Transaction;
 import com.dimash.springbank.exception.InsufficientFundsException;
+import com.dimash.springbank.exception.InvalidTransferException;
 import com.dimash.springbank.exception.ResourceNotFoundException;
 import com.dimash.springbank.repository.AccountRepository;
 import com.dimash.springbank.repository.TransactionRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -22,51 +24,52 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
 
     @Transactional
-    public void transfer(TransferRequest request){
-        Account sender = accountRepository.findById(request
-                .getSenderAccountId())
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Sender not found")
-                );
+    public TransactionResponse transfer(TransferRequest request, String email){
+        Long senderId = request.getSenderAccountId();
+        Long receiverId = request.getReceiverAccountId();
+        BigDecimal amount = request.getAmount();
 
-        Account receiver = accountRepository.findById(request
-                .getReceiverAccountId())
-                .orElseThrow(
-                        () -> new ResourceNotFoundException("Receiver not found")
-                );
-
-        if (sender.getBalance()
-                .compareTo(request.getAmount()) < 0) {
-
-            throw new InsufficientFundsException("Insufficient funds :(");
-
+        if (senderId.equals(receiverId)) {
+            throw new InvalidTransferException("Cannot transfer to the same account");
         }
 
-        sender.setBalance(
-                sender.getBalance()
-                        .subtract(request.getAmount())
-        );
+        // Always lock rows in ascending id order: two opposite transfers (A->B and B->A)
+        // running at the same time would otherwise deadlock.
+        Account first = lock(Math.min(senderId, receiverId));
+        Account second = lock(Math.max(senderId, receiverId));
+        Account sender = first.getId().equals(senderId) ? first : second;
+        Account receiver = sender == first ? second : first;
 
-        receiver.setBalance(
-                receiver.getBalance()
-                        .add(request.getAmount())
-        );
+        if (!sender.isOwnedBy(email)) {
+            throw new ResourceNotFoundException("Account not found");
+        }
+        if (!sender.getCurrency().equals(receiver.getCurrency())) {
+            throw new InvalidTransferException("Currency mismatch: " + sender.getCurrency() + " -> " + receiver.getCurrency());
+        }
+        if (sender.getBalance().compareTo(amount) < 0) {
+            throw new InsufficientFundsException("Insufficient funds");
+        }
+
+        sender.setBalance(sender.getBalance().subtract(amount));
+        receiver.setBalance(receiver.getBalance().add(amount));
 
         Transaction transaction = new Transaction();
-
-        transaction.setAmount(request.getAmount());
+        transaction.setAmount(amount);
         transaction.setSenderAccount(sender);
         transaction.setReceiverAccount(receiver);
-        transaction.setCreatedAt(LocalDateTime.now());
 
-        transactionRepository.save(transaction);
-
+        return TransactionResponse.from(transactionRepository.saveAndFlush(transaction));
     }
 
-    public List<TransactionResponse> getMyTransactions(String email){
-        return transactionRepository.findBySenderAccountUserEmailOrReceiverAccountUserEmail(email, email).stream()
-                .map(transaction -> new TransactionResponse(transaction.getId(), transaction.getAmount(), transaction.getSenderAccount().getAccountNumber(), transaction.getReceiverAccount().getAccountNumber(), transaction.getCreatedAt()))
-                .toList();
+    @Transactional(readOnly = true)
+    public Page<TransactionResponse> getMyTransactions(String email, Pageable pageable){
+        return transactionRepository.findAllByUserEmail(email, pageable)
+                .map(TransactionResponse::from);
+    }
+
+    private Account lock(Long id) {
+        return accountRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
     }
 
 }

@@ -1,38 +1,23 @@
 package com.dimash.springbank.service;
 
-import com.dimash.springbank.dto.RegisterUserRequest;
 import com.dimash.springbank.dto.UserResponse;
-import com.dimash.springbank.entity.User;
 import com.dimash.springbank.exception.ResourceNotFoundException;
 import com.dimash.springbank.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
+@Transactional(readOnly = true)
 public class UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-
-    public List<UserResponse> getAllUsers(){
-        return userRepository.findAll().stream()
-                .map(user -> new UserResponse(user.getId(), user.getUsername(), user.getEmail()))
-                .toList();
-    }
 
     public UserResponse getMe(String email){
-        User user = userRepository.findByEmail(email).orElseThrow(
-                () -> new ResourceNotFoundException("User not found")
-        );
-
-        return new UserResponse(user.getId(), user.getUsername(), user.getEmail());
-
+        return userRepository.findByEmail(email)
+                .map(UserResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
-
-
 
 }

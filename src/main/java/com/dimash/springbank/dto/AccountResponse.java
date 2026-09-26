@@ -1,17 +1,12 @@
 package com.dimash.springbank.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import com.dimash.springbank.entity.Account;
 
 import java.math.BigDecimal;
 
-@Getter
-@AllArgsConstructor
-public class AccountResponse {
+public record AccountResponse(Long id, String accountNumber, BigDecimal balance, String currency) {
 
-    private Long id;
-    private String accountNumber;
-    private BigDecimal balance;
-    private String currency;
-
+    public static AccountResponse from(Account account) {
+        return new AccountResponse(account.getId(), account.getAccountNumber(), account.getBalance(), account.getCurrency());
+    }
 }

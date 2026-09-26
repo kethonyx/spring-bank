@@ -6,12 +6,14 @@ import com.dimash.springbank.dto.RegisterUserRequest;
 import com.dimash.springbank.dto.UserResponse;
 import com.dimash.springbank.entity.User;
 import com.dimash.springbank.exception.DuplicateEmailException;
-import com.dimash.springbank.exception.ResourceNotFoundException;
 import com.dimash.springbank.exception.UnauthorizedException;
 import com.dimash.springbank.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -21,47 +23,35 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
+    @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request){
+        // Same error for unknown email and wrong password, so attackers can't probe which emails are registered
+        User user = userRepository.findByEmail(normalize(request.getEmail()))
+                .filter(u -> passwordEncoder.matches(request.getPassword(), u.getPassword()))
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
-        User user = userRepository.findByEmail(request.getEmail()).orElseThrow(
-                () ->  new ResourceNotFoundException("User not found")
-        );
-
-        boolean matches =
-                passwordEncoder.matches(
-                        request.getPassword(),
-                        user.getPassword()
-                );
-
-        if(!matches){
-            throw new UnauthorizedException(
-                    "Invalid email or password"
-            );
-        }
-
-        String token =
-                jwtService.generateToken(user.getEmail());
-
-
-        return new LoginResponse(token);
+        String token = jwtService.generateToken(user.getEmail());
+        return new LoginResponse(token, "Bearer", jwtService.getExpiration().toSeconds());
     }
-    public UserResponse register(RegisterUserRequest request){
 
-        if(userRepository.existsByEmail(request.getEmail())){
+    @Transactional
+    public UserResponse register(RegisterUserRequest request){
+        String email = normalize(request.getEmail());
+
+        if(userRepository.existsByEmail(email)){
             throw new DuplicateEmailException("User with this email already exists");
         }
 
         User user = new User();
-
-        user.setEmail(request.getEmail());
-        user.setUsername(request.getUsername());
+        user.setEmail(email);
+        user.setUsername(request.getUsername().trim());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        User savedUser = userRepository.save(user);
+        return UserResponse.from(userRepository.save(user));
+    }
 
-        return new UserResponse(savedUser.getId(), savedUser.getUsername(), savedUser.getEmail());
-
-
+    private static String normalize(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
 }

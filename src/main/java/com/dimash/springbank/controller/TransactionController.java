@@ -5,10 +5,14 @@ import com.dimash.springbank.dto.TransferRequest;
 import com.dimash.springbank.service.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
-import java.util.List;
 
 @RestController
 @RequestMapping("/transactions")
@@ -17,16 +21,16 @@ public class TransactionController {
     private final TransactionService transactionService;
 
     @PostMapping("/transfer")
-    public String transfer(@Valid @RequestBody TransferRequest request){
-        transactionService.transfer(request);
-
-        return "Transfer Successful!";
+    @ResponseStatus(HttpStatus.CREATED)
+    public TransactionResponse transfer(@Valid @RequestBody TransferRequest request, Principal principal){
+        return transactionService.transfer(request, principal.getName());
     }
 
     @GetMapping
-    public List<TransactionResponse> getMyTransactions(Principal principal){
-        return transactionService.getMyTransactions(principal.getName());
+    public PagedModel<TransactionResponse> getMyTransactions(
+            Principal principal,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+        return new PagedModel<>(transactionService.getMyTransactions(principal.getName(), pageable));
     }
-
 
 }
