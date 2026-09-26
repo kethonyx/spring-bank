@@ -11,10 +11,14 @@ import lombok.Setter;
 public class RegisterUserRequest {
 
     @NotBlank
+    @Size(max = 50)
     private String username;
+
     @Email
     @NotBlank
     private String email;
-    @Size(min = 8)
+
+    @NotBlank
+    @Size(min = 8, max = 72) // BCrypt ignores everything after 72 bytes
     private String password;
 }

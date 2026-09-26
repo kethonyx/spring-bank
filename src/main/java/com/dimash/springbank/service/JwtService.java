@@ -1,7 +1,6 @@
 package com.dimash.springbank.service;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,49 +8,47 @@ import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
+import java.util.Optional;
 
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private final SecretKey key;
+    private final Duration expiration;
 
-    private SecretKey getKey(){
-        return Keys.hmacShaKeyFor(
-                        secret.getBytes(
-                                StandardCharsets.UTF_8
-                        )
-                );
+    public JwtService(@Value("${jwt.secret}") String secret,
+                      @Value("${jwt.expiration:1h}") Duration expiration) {
+        // HS256 requires at least 256 bits; Keys.hmacShaKeyFor throws on shorter secrets
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expiration = expiration;
     }
 
-    public String extractEmail(String token){
-        Claims claims = Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
-        return claims.getSubject();
+    public String generateToken(String email) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(email)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + expiration.toMillis()))
+                .signWith(key)
+                .compact();
     }
 
-    public boolean isValid(String token){
-
-        try{
-            extractEmail(token);
-            return true;
-        }catch (Exception e){
-            return false;
+    /** Returns the email (subject) if the token is valid and not expired. */
+    public Optional<String> extractEmail(String token) {
+        try {
+            return Optional.ofNullable(
+                    Jwts.parser().verifyWith(key).build()
+                            .parseSignedClaims(token)
+                            .getPayload()
+                            .getSubject());
+        } catch (JwtException | IllegalArgumentException e) {
+            return Optional.empty();
         }
     }
 
-    public String generateToken(String email){
-
-        return Jwts.builder()
-                .subject(email)
-                .signWith(getKey())
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
-                .compact();
-
+    public Duration getExpiration() {
+        return expiration;
     }
 }

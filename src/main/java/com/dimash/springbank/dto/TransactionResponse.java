@@ -1,20 +1,26 @@
 package com.dimash.springbank.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import com.dimash.springbank.entity.Transaction;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
-@Getter
-@AllArgsConstructor
-public class TransactionResponse {
+public record TransactionResponse(
+        Long id,
+        BigDecimal amount,
+        String currency,
+        String senderAccountNumber,
+        String receiverAccountNumber,
+        Instant createdAt
+) {
 
-    private Long id;
-    private BigDecimal amount;
-    private String senderAccountNumber;
-    private String receiverAccountNumber;
-    private LocalDateTime createdAt;
-
-
+    public static TransactionResponse from(Transaction transaction) {
+        return new TransactionResponse(
+                transaction.getId(),
+                transaction.getAmount(),
+                transaction.getSenderAccount().getCurrency(),
+                transaction.getSenderAccount().getAccountNumber(),
+                transaction.getReceiverAccount().getAccountNumber(),
+                transaction.getCreatedAt());
+    }
 }
